@@ -94,7 +94,6 @@ section{display:none} section.active{display:block}
 <section id="signal" class="active">
 
 <!-- 1. Green light or not -->
-<div id="lockCard"></div>
 <div class="light" id="light"></div>
 <div class="card" id="factorsBox" style="padding:12px 16px"></div>
 
@@ -145,16 +144,8 @@ section{display:none} section.active{display:block}
 </details>
 
 <details class="card">
-  <summary>Share with partner · Backup</summary>
-  <div style="margin:12px 0 16px;padding-bottom:14px;border-bottom:1px solid var(--line)">
-    <p class="q" style="margin-bottom:4px">🔒 Share your prices with a password</p>
-    <p class="muted" style="margin:0 0 8px">Locks everything on this screen (prices, Edsel's prices, estimates, notes, markup) into <b>shared-data.js</b>. Put that file on the website. Only people with the password can open it. Use the same password every time so your partner's copy updates by itself.</p>
-    <div class="row">
-      <label class="f">Password<input id="pw1" type="password" autocomplete="new-password"></label>
-      <label class="f">Type it again<input id="pw2" type="password" autocomplete="new-password"></label>
-    </div>
-    <button class="btn" id="lockBtn">Create locked file</button>
-  </div>
+  <summary>Backup</summary>
+
   <div class="item"><a href="https://doe.gov.ph/prices/fuels" target="_blank" rel="noopener">DOE Oil Price Monitor ↗</a><span class="s">official weekly prices</span></div>
   <div class="item"><a href="https://gaswatchph.com/" target="_blank" rel="noopener">GasWatch PH ↗</a><span class="s">Metro Manila averages</span></div>
   <div class="row" style="margin-top:10px">
@@ -245,7 +236,6 @@ section{display:none} section.active{display:block}
 <div class="toast" id="toast"></div>
 
 <script>document.write('<script src="live-data.js?t=' + Math.floor(Date.now() / 6e5) + '"><\/script>')</script>
-<script>document.write('<script src="shared-data.js?t=' + Math.floor(Date.now() / 6e5) + '" onerror="0"><\/script>')</script>
 <script src="seed.js" onerror="0"></script>
 <script>
 const KEY = 'fuelBroker.v1';
@@ -671,74 +661,6 @@ function loadTradingView(){
 $('markup').value = state.settings.markup ?? 1;
 $('markup').addEventListener('input', () => { const v = parseFloat($('markup').value); if (v >= 0){ state.settings.markup = v; save(); $('ideal').innerHTML = ideal(upcoming()); } });
 
-// ---------- password-locked sharing ----------
-// AES-GCM with a key from PBKDF2(password, salt). Same password + same salt = same key,
-// so a partner who unlocked once gets later versions automatically.
-const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
-const unb64 = str => Uint8Array.from(atob(str), c => c.charCodeAt(0));
-async function deriveKey(pw, salt){
-  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey({ name:'PBKDF2', salt, iterations:250000, hash:'SHA-256' }, base, { name:'AES-GCM', length:256 }, true, ['encrypt','decrypt']);
-}
-$('lockBtn').onclick = async () => {
-  const pw = $('pw1').value;
-  if (pw.length < 6){ toast('Use at least 6 characters'); return; }
-  if (pw !== $('pw2').value){ toast("Passwords don't match"); return; }
-  ui.shareSalt ??= b64(crypto.getRandomValues(new Uint8Array(16))); saveUi();
-  const key = await deriveKey(pw, unb64(ui.shareSalt)), iv = crypto.getRandomValues(new Uint8Array(12));
-  const payload = { version: Date.now(), prices: state.prices, news: state.news, settings: { markup: state.settings.markup ?? 1 } };
-  const data = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(payload)));
-  const file = `window.SHARED = ${JSON.stringify({ version: payload.version, salt: ui.shareSalt, iv: b64(iv), data: b64(data) })};\n`;
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([file], { type:'text/javascript' })); a.download = 'shared-data.js'; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  $('pw1').value = $('pw2').value = '';
-  toast('Locked file saved: shared-data.js');
-};
-function mergeShared(p){
-  const gone = new Set(ui.deleted);
-  const upsert = (arr, x) => { if (gone.has(x.id)) return; const i = arr.findIndex(y => y.id === x.id); if (i < 0) arr.push({ ...x }); else arr[i] = { ...arr[i], ...x }; };
-  (p.prices || []).forEach(x => upsert(state.prices, x));
-  (p.news || []).forEach(x => upsert(state.news, x));
-  if (p.settings?.markup != null){ state.settings.markup = p.settings.markup; $('markup').value = p.settings.markup; }
-  ui.sharedVersion = p.version; save(); saveUi();
-}
-async function openShared(key){
-  const S = window.SHARED;
-  const plain = await crypto.subtle.decrypt({ name:'AES-GCM', iv: unb64(S.iv) }, key, unb64(S.data));
-  mergeShared(JSON.parse(new TextDecoder().decode(plain)));
-}
-function renderLock(){
-  const S = window.SHARED, need = S && (ui.sharedVersion || 0) < S.version;
-  $('lockCard').innerHTML = !need ? '' : `<div class="card" style="border-color:var(--accent)">
-    <p class="q">🔒 Shared prices are locked</p>
-    <p class="muted" style="margin:-4px 0 10px">Enter the password to see the supplier and Edsel prices.</p>
-    <div class="row"><input id="unlockPw" type="password" autocomplete="current-password" placeholder="Password"><button class="btn" id="unlockBtn" style="margin:0;flex:none;width:auto">Unlock</button></div>
-  </div>`;
-  if (!need) return;
-  const go = async () => {
-    try {
-      const key = await deriveKey($('unlockPw').value, unb64(S.salt));
-      await openShared(key);
-      try { localStorage.setItem(KEY + '.sk', JSON.stringify({ salt: S.salt, k: b64(await crypto.subtle.exportKey('raw', key)) })); } catch(e){}
-      renderLock(); render(); toast('Unlocked');
-    } catch(e){ toast('Wrong password'); }
-  };
-  $('unlockBtn').onclick = go;
-  $('unlockPw').onkeydown = e => { if (e.key === 'Enter') go(); };
-}
-// Already unlocked before? Open newer versions automatically with the saved key.
-(async () => {
-  const S = window.SHARED;
-  if (!S || (ui.sharedVersion || 0) >= S.version || !crypto?.subtle) return;
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY + '.sk') || 'null');
-    if (!saved || saved.salt !== S.salt) return;
-    await openShared(await crypto.subtle.importKey('raw', unb64(saved.k), 'AES-GCM', false, ['decrypt']));
-    renderLock(); render();
-  } catch(e){}
-})();
-
 // ---------- tabs ----------
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x === b));
@@ -749,7 +671,6 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
 if (ui.tab) document.querySelector(`nav button[data-tab="${ui.tab}"]`)?.click();
 
 function render(){
-  renderLock();
   const u = upcoming(), s = signal(u);
   $('light').className = 'light ' + s.cls;
   $('light').innerHTML = `<div class="big">${s.big}</div><div class="why">${s.why}</div>${s.badge ? `<span class="badge">${/DOWN|ROLLBACK/.test(s.badge) ? '⬇' : '⬆'} ${s.badge}</span>` : ''}`;
