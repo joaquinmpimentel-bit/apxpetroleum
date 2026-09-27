@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuel Offer Signal</title>
+<style>
+:root{
+  --bg:#f6f5f2; --card:#ffffff; --ink:#1c1c1a; --muted:#6b6a64; --line:#e3e1db;
+  --accent:#0f6b5c; --accent-ink:#ffffff; --soft:#eef3f1; --up:#b3261e; --down:#1a7f37;
+  --go-bg:#1a7f37; --stop-bg:#b3261e; --wait-bg:#a36300; --light-ink:#ffffff;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#141412; --card:#1d1d1b; --ink:#ecebe6; --muted:#9d9b93; --line:#34332f;
+    --accent:#4fb8a3; --accent-ink:#0d1f1b; --soft:#232826; --up:#ff8a80; --down:#6fd08c;
+    --go-bg:#1f7a3a; --stop-bg:#a8322a; --wait-bg:#94620f;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:600px;margin:0 auto;padding:16px 16px 60px}
+h1{font-size:20px;margin:4px 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
+.q{font-weight:600;margin:0 0 10px}
+.muted{color:var(--muted);font-size:14px}
+.light{border-radius:16px;padding:20px;margin-bottom:14px;color:var(--light-ink)}
+.light.go{background:var(--go-bg)} .light.stop{background:var(--stop-bg)} .light.wait{background:var(--wait-bg)}
+.light .big{font-size:30px;font-weight:800;letter-spacing:.3px;line-height:1.1}
+.light .why{margin-top:8px;font-size:16px;opacity:.95}
+.light .badge{display:inline-block;margin-top:10px;font-size:13px;font-weight:700;letter-spacing:.4px;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.2)}
+.ideal .num{font-size:40px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums;line-height:1.1;margin:2px 0 6px}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:15px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.kv b{font-variant-numeric:tabular-nums;text-align:right}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.choice{font:inherit;padding:14px 10px;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.choice.down.on{border-color:var(--down);color:var(--down);font-weight:700}
+.choice.up.on{border-color:var(--up);color:var(--up);font-weight:700}
+input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;width:100%}
+input.big{font-size:24px;font-weight:700}
+label.f{display:block;font-size:14px;color:var(--muted)}
+.row{display:flex;gap:10px;align-items:end}
+.row > *{flex:1}
+.btn{font:inherit;font-weight:600;width:100%;padding:14px;border-radius:10px;border:0;background:var(--accent);color:var(--accent-ink);cursor:pointer;margin-top:14px}
+.btn.secondary{background:transparent;color:var(--ink);border:1px solid var(--line);font-weight:500}
+.est{display:grid;grid-template-columns:56px 1fr auto auto;gap:10px;align-items:center;padding:6px 0;font-size:15px}
+.est .bar{height:14px;border-radius:4px}
+.est .d{color:var(--muted);font-size:13px}
+.est .v{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.down-t{color:var(--down)} .up-t{color:var(--up)}
+.item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.item:last-child{border-bottom:0}
+.item .s{font-size:13px;color:var(--muted)}
+.x{background:none;border:0;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px}
+details > summary{cursor:pointer;font-weight:600;list-style:none}
+details > summary::after{content:" ▸";color:var(--muted)}
+details[open] > summary::after{content:" ▾"}
+svg text{fill:var(--muted);font-size:11px}
+a{color:var(--accent)}
+.factors{display:grid;grid-template-columns:1fr auto;gap:8px 12px;font-size:15px;align-items:baseline}
+.factors > span:nth-child(odd){color:var(--muted)}
+.factors > span:nth-child(even){text-align:right}
+.factors .s{color:var(--muted);font-size:13px;font-weight:400}
+table.hist{width:100%;border-collapse:collapse;font-size:15px;margin-top:12px}
+table.hist th{font-size:12px;color:var(--muted);font-weight:600;text-align:left;padding:6px 4px;border-bottom:1px solid var(--line)}
+table.hist td{padding:8px 4px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+table.hist tr:last-child td{border-bottom:0}
+table.hist .r{text-align:right}
+nav{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px}
+nav button{font:inherit;font-size:15px;border:0;border-radius:9px;padding:10px 4px;background:none;color:var(--muted);cursor:pointer}
+nav button.active{background:var(--accent);color:var(--accent-ink);font-weight:600}
+section{display:none} section.active{display:block}
+.links{display:flex;flex-wrap:wrap;gap:8px}
+.links a{font-size:14px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;text-decoration:none;color:var(--ink)}
+.day{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.4px;margin:18px 0 8px;text-transform:uppercase}
+.news-item{background:var(--card);border:1px solid var(--line);border-left-width:4px;border-radius:12px;padding:12px 14px;margin-bottom:8px}
+.news-item.rollback{border-left-color:var(--down)} .news-item.hike{border-left-color:var(--up)} .news-item.risk{border-left-color:#c27a00} .news-item.market{border-left-color:var(--muted)} .news-item.outlook{border-left-color:var(--accent);background:var(--soft)}
+.news-item .h{font-weight:650}
+.news-item .b{font-size:15px;margin-top:3px}
+.news-item .m{font-size:13px;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.tag{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--soft)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Fuel Offer Signal</h1>
+<nav>
+  <button data-tab="signal" class="active">Signal</button>
+  <button data-tab="news">Price news</button>
+</nav>
+
+<section id="signal" class="active">
+
+<!-- 1. Green light or not -->
+<div class="light" id="light"></div>
+<div class="card" id="factorsBox" style="padding:12px 16px"></div>
+
+<!-- 2. Ideal price -->
+<div class="card ideal" id="ideal"></div>
+
+<!-- 3. Estimates for next Tuesday -->
+<div class="card">
+  <p class="q" id="estTitle"></p>
+  <div id="estList"></div>
+  <div class="choices" id="dirChoices" style="margin-top:14px">
+    <button class="choice down on" data-dir="down">▼ Rollback</button>
+    <button class="choice up" data-dir="up">▲ Hike</button>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <label class="f">How much ₱/L<input id="chg" type="number" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 6.70"></label>
+    <label class="f">Who said it<input id="who" placeholder="e.g. Edsel"></label>
+  </div>
+  <label class="f" style="margin-top:10px">As of<input id="heard" type="date"></label>
+  <button class="btn" id="saveEst">Add estimate</button>
+</div>
+
+<!-- 4. New price after Tuesday -->
+<div class="card">
+  <p class="q">New price <span class="muted">(after Tuesday, from supplier)</span></p>
+  <div class="row">
+    <label class="f">Supplier price ₱/L<input id="mainPrice" class="big" type="number" step="0.01" min="0" inputmode="decimal" placeholder="88.40"></label>
+    <label class="f">Edsel's price ₱/L <span>(optional)</span><input id="edselPrice" type="number" step="0.01" min="0" inputmode="decimal" placeholder="optional"></label>
+  </div>
+  <label class="f" style="margin-top:10px">Date<input id="priceDate" type="date"></label>
+  <button class="btn secondary" id="savePrice">Save price</button>
+</div>
+
+<!-- 5. Chart + history -->
+<div class="card" id="chartCard">
+  <p class="q">Price history</p>
+  <div id="chart"></div>
+  <table class="hist" id="edselTable"></table>
+</div>
+
+<details class="card">
+  <summary>History</summary>
+  <div id="history" style="margin-top:8px"></div>
+</details>
+
+<details class="card">
+  <summary>Where to check · Backup</summary>
+  <div class="item"><a href="https://doe.gov.ph/prices/fuels" target="_blank" rel="noopener">DOE Oil Price Monitor ↗</a><span class="s">official weekly prices</span></div>
+  <div class="item"><a href="https://gaswatchph.com/" target="_blank" rel="noopener">GasWatch PH ↗</a><span class="s">Metro Manila averages</span></div>
+  <div class="row" style="margin-top:10px">
+    <button class="btn secondary" id="exportBtn">Save backup file</button>
+    <label class="btn secondary" style="text-align:center">Restore backup<input type="file" id="importFile" accept="application/json" hidden></label>
+  </div>
+</details>
+</section>
+
+<!-- ============ PRICE NEWS ============ -->
+<section id="news">
+  <div class="card" style="padding:14px 18px">
+    <p class="q">Check for new news</p>
+    <p class="muted" style="margin:-4px 0 10px">Estimates for next Tuesday usually come out Tuesday–Friday. Final numbers come Monday.</p>
+    <div class="links">
+      <a href="https://news.google.com/search?q=oil%20price%20rollback%20OR%20hike%20next%20week%20Philippines%20diesel&hl=en-PH&gl=PH&ceid=PH:en" target="_blank" rel="noopener">Google News ↗</a>
+      <a href="https://www.philstar.com/business" target="_blank" rel="noopener">Philstar ↗</a>
+      <a href="https://mb.com.ph/category/business" target="_blank" rel="noopener">Manila Bulletin ↗</a>
+      <a href="https://www.pna.gov.ph/categories/business" target="_blank" rel="noopener">PNA ↗</a>
+      <a href="https://doe.gov.ph/prices/fuels" target="_blank" rel="noopener">DOE ↗</a>
+      <a href="https://tradingeconomics.com/commodity/brent-crude-oil" target="_blank" rel="noopener">Brent chart ↗</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="q">Trend</p>
+    <div id="trendSummary" style="font-size:15px;margin:-4px 0 8px"></div>
+    <div class="muted">Supplier price (₱/L)</div>
+    <div id="nChartPrice"></div>
+  </div>
+
+  <div class="card">
+    <p class="q">Every Tuesday: hike or rollback?</p>
+    <div id="nChartWeekly"></div>
+  </div>
+
+  <div class="card">
+    <p class="q">World oil price (Brent, US$/barrel)</p>
+    <p class="muted" style="margin:-6px 0 6px">This drives next Tuesday's change. Going down = rollback coming. Going up = hike coming.</p>
+    <div id="nChartBrent"></div>
+    <div class="row" style="margin-top:8px">
+      <label class="f">Date<input id="bDate" type="date"></label>
+      <label class="f">Brent $<input id="bPrice" type="number" step="0.01" min="0" inputmode="decimal" placeholder="e.g. 104.32"></label>
+    </div>
+    <button class="btn secondary" id="saveBrent">Add Brent price</button>
+  </div>
+
+  <div class="card">
+    <p class="q">Live Brent chart <span class="muted">(TradingView)</span></p>
+    <div id="tvChart" style="height:380px"></div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:baseline">
+      <p class="q" style="margin:0;flex:none">Live headlines · Philippines</p>
+      <span class="muted" id="liveUpdated" style="flex:none"></span>
+    </div>
+    <div id="liveNews" style="margin-top:6px"></div>
+  </div>
+
+  <div class="card">
+    <p class="q">Live oil news · world <span class="muted">(TradingView)</span></p>
+    <div id="tvNews" style="height:460px"></div>
+  </div>
+
+  <p class="q" style="margin:18px 0 0">Saved notes</p>
+  <div id="newsFeed"></div>
+
+  <details class="card">
+    <summary>Add news</summary>
+    <div class="choices" id="tagChoices" style="margin-top:12px;grid-template-columns:repeat(4,1fr)">
+      <button class="choice down on" data-tag="rollback">Rollback</button>
+      <button class="choice up" data-tag="hike">Hike</button>
+      <button class="choice" data-tag="risk">Risk</button>
+      <button class="choice" data-tag="market">Market</button>
+    </div>
+    <label class="f" style="margin-top:10px">Headline<input id="nTitle" placeholder="e.g. Diesel rollback of ₱2 seen next week"></label>
+    <label class="f" style="margin-top:10px">Details <span>(optional)</span><input id="nBody" placeholder="numbers, who said it"></label>
+    <div class="row" style="margin-top:10px">
+      <label class="f">Source<input id="nSource" placeholder="e.g. Edsel, Philstar"></label>
+      <label class="f">Date<input id="nDate" type="date"></label>
+    </div>
+    <label class="f" style="margin-top:10px">Link <span>(optional)</span><input id="nUrl" type="url" placeholder="https://"></label>
+    <button class="btn" id="saveNews">Add news</button>
+  </details>
+</section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>document.write('<script src="live-data.js?t=' + Math.floor(Date.now() / 6e5) + '"><\/script>')</script>
+<script src="seed.js" onerror="0"></script>
+<script>
+const KEY = 'fuelBroker.v1';
+// price = our supplier's price (what we offer); price2 = Edsel's (EJC) price, optional.
+// Estimates: actual:'forecast', date = the Tuesday it applies to, heard = when we heard it.
+
+// ---------- storage ----------
+function load(){ try { const r = localStorage.getItem(KEY); if (r) return JSON.parse(r); } catch(e){} return null; }
+let state = load() || {};
+state.prices ??= []; state.deals ??= []; state.settings ??= {};
+const ui = (() => { try { return JSON.parse(localStorage.getItem(KEY+'.ui')) || {}; } catch(e){ return {}; } })();
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){ toast('Could not save. Use "Save backup file".'); } }
+function saveUi(){ try { localStorage.setItem(KEY+'.ui', JSON.stringify(ui)); } catch(e){} }
+function toast(msg){ const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 1800); }
+
+// Private starting data from seed.js (only on the owner's Mac; the online copy has none).
+// Applied once per seed version; entries you deleted stay deleted.
+state.news ??= []; state.brent ??= []; ui.deleted ??= [];
+const SEED = window.SEED;
+if (SEED && (ui.seedVersion || 0) < SEED.version){
+  const gone = new Set([...(SEED.remove || []), ...ui.deleted]);
+  state.prices = state.prices.filter(p => !gone.has(p.id) && !String(p.id).startsWith('seed-'));
+  state.news = state.news.filter(n => !gone.has(n.id));
+  const upsert = (arr, s) => { if (gone.has(s.id)) return; const i = arr.findIndex(x => x.id === s.id); if (i < 0) arr.push({ ...s }); else arr[i] = { ...arr[i], ...s }; };
+  (SEED.prices || []).forEach(s => upsert(state.prices, s));
+  (SEED.news || []).forEach(s => upsert(state.news, s));
+  ui.seedVersion = SEED.version; save(); saveUi();
+}
+const forget = id => { if (!ui.deleted.includes(id)){ ui.deleted.push(id); saveUi(); } };
+
+// ---------- helpers ----------
+const $ = id => document.getElementById(id);
+const peso = new Intl.NumberFormat('en-PH', { style:'currency', currency:'PHP', minimumFractionDigits:2, maximumFractionDigits:2 });
+const P = v => peso.format(v || 0);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const iso = d => { d = new Date(d); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const todayISO = () => iso(new Date());
+const fmtDate = s => new Date(s+'T00:00:00').toLocaleDateString('en-PH',{month:'short',day:'numeric'});
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+function nextTuesday(s){ const d = new Date(s+'T00:00:00'); d.setDate(d.getDate() + (((2 - d.getDay() + 7) % 7) || 7)); return iso(d); }
+const daysBetween = (a, b) => Math.round((new Date(b+'T00:00:00') - new Date(a+'T00:00:00')) / 864e5);
+
+const prices = () => state.prices.filter(p => p.actual !== 'forecast' && p.price != null)
+  .sort((a,b)=> a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+const current = () => prices().slice(-1)[0];
+
+// Rollback/hike amounts read from live headlines, e.g. "Diesel may drop by up to ₱7.50/L next week".
+// One estimate per day (the biggest figure quoted that day), for the Tuesday after the headline.
+function headlineEstimates(){
+  const out = {};
+  (window.LIVE?.news || []).forEach(n => {
+    const t = n.title;
+    if (!/diesel|fuel|oil|pump/i.test(t)) return;
+    // Only forecasts, not reports of a change that already happened
+    if (!/next week|\bseen\b|\bsees\b|\bmay\b|\bcould\b|possible|expected|likely|projected|looms|eyed|forecast|estimate|\bto (?:roll|hike|cut|drop|increase|decrease)/i.test(t)) return;
+    // Direction words only ("up to ₱7.50" is NOT a hike). ₱ or a P directly before a number.
+    const DOWN = 'rollback|roll back|rolled back|cut|drop|drops|decrease|plunge|plunging|lower|reduction|slash', UP = 'hike|hikes|increase|increases|rise|rises|jump|jumps|climb|climbs|go up|goes up';
+    const NUM = '(?:₱|P(?=\\s?\\d))\\s?(\\d+(?:\\.\\d+)?)';
+    let m = t.match(new RegExp(`\\b(${DOWN}|${UP})\\b[^₱\\d]{0,24}?${NUM}`, 'i'))
+         || t.match(new RegExp(`${NUM}\\s?(?:/\\s?l(?:iter|itre)?\\b|per liter)?\\s+(${DOWN}|${UP})\\b`, 'i'));
+    if (!m) return;
+    const [word, num] = /\d/.test(m[1]) ? [m[2], m[1]] : [m[1], m[2]];
+    const v = parseFloat(num); if (!(v > 0 && v <= 20)) return;
+    const dir = new RegExp(`^(${DOWN})$`, 'i').test(word) ? 'down' : 'up';
+    const day = n.time.slice(0, 10), target = nextTuesday(day), k = target + day;
+    if (!out[k] || v > out[k].change) out[k] = { id: 'auto-' + k, date: target, heard: day, dir, change: v, actual: 'forecast', auto: true, note: 'Headline · ' + n.source };
+  });
+  return Object.values(out);
+}
+
+function upcoming(){
+  const cur = current();
+  const mine = state.prices.filter(p => p.actual === 'forecast' && p.change != null && p.dir !== 'flat' && p.date > (cur?.date || ''));
+  // Your own estimates win; headline estimates fill in when you haven't added any for that Tuesday
+  const auto = headlineEstimates().filter(p => p.date > (cur?.date || '') && p.date >= todayISO() && !mine.some(x => x.date === p.date));
+  const fcs = [...mine, ...auto];
+  const from = cur && cur.date > todayISO() ? cur.date : todayISO();
+  const target = fcs.length ? fcs.map(p => p.date).sort()[0] : nextTuesday(from);
+  const list = fcs.filter(p => p.date === target).sort((a,b)=> (a.heard||a.date).localeCompare(b.heard||b.date) || a.id.localeCompare(b.id));
+  const last = list[list.length-1], prev = list[list.length-2];
+  let trend = null;
+  if (last && prev){
+    if (last.dir !== prev.dir) trend = { key:'flip', label: last.dir === 'up' ? 'TURNED INTO A HIKE' : 'TURNED INTO A ROLLBACK' };
+    else if (last.change > prev.change) trend = { key:'grow', label: last.dir === 'down' ? 'ROLLBACK GROWING' : 'HIKE GROWING' };
+    else if (last.change < prev.change) trend = { key:'shrink', label: last.dir === 'down' ? 'ROLLBACK SHRINKING' : 'HIKE SHRINKING' };
+    else trend = { key:'same', label: 'ESTIMATE UNCHANGED' };
+  }
+  return { cur, target, list, last, prev, trend, passed: !!last && target <= todayISO() };
+}
+
+// ---------- the signal ----------
+function signal(u){
+  const { cur, last, prev, trend, target } = u;
+  const amt = p => `${p.dir === 'down' ? 'rollback' : 'hike'} ${P(p.change)}`;
+  const was = !prev ? '' : prev.dir !== last.dir ? ` (${amt(prev)} → ${amt(last)})` : ` (${P(prev.change)} → ${P(last.change)})`;
+  if (!cur && !last && !brentTrend()) return { cls:'wait', big:'ADD A PRICE', why:'Enter your current price below.' };
+  if (u.passed) return { cls:'wait', big:'GET THE NEW PRICE', why:`${fmtDate(target)} has passed. Ask your supplier for the new price and save it below.` };
+  const bt = brentTrend();
+  if (!last){
+    // No Tuesday estimate yet: the current Brent trend is the early signal
+    if (bt && !bt.stale && bt.dir === 'up') return { cls:'go', big:'GREEN LIGHT: OFFER NOW', badge:'EARLY SIGNAL',
+      why:`No estimate yet for ${fmtDate(target)}, but world oil is rising (${bt.txt}). That points to a hike. Offer before Tuesday, and confirm with Edsel or the news.` };
+    if (bt && !bt.stale && bt.dir === 'down') return { cls:'stop', big:"DON'T OFFER YET", badge:'EARLY SIGNAL',
+      why:`No estimate yet for ${fmtDate(target)}, but world oil is falling (${bt.txt}). That points to a rollback. Wait, and confirm with Edsel or the news.` };
+    return { cls:'wait', big:'CHECK THE TREND FIRST', why:`No estimate yet for ${fmtDate(target)}${bt && !bt.stale ? ' and world oil is flat' : ''}. `
+      + (bt?.stale || !bt ? 'Add today\'s Brent price in Price news, or ' : '') + 'ask Edsel which way next Tuesday is going.' };
+  }
+  // After Tuesday: does the current trend say the NEXT week goes the other way?
+  const after = !bt || bt.stale ? '' : last.dir === 'down'
+    ? (bt.dir === 'up' ? ` World oil is rising again (${bt.txt}), so the week after may be a hike. <b>Tuesday could be the bottom: be ready to offer right after the rollback.</b>`
+       : bt.dir === 'down' ? ` World oil is still falling (${bt.txt}), so another rollback may follow. Check again after Tuesday before offering.` : '')
+    : (bt.dir === 'down' ? ` World oil is falling (${bt.txt}), so this may be the last hike for now.`
+       : bt.dir === 'up' ? ` World oil is still rising (${bt.txt}), so more hikes may follow.` : '');
+  if (last.dir === 'down'){
+    const why = !trend ? 'Only one estimate so far.'
+      : trend.key === 'grow' ? `It's getting bigger${was}. Buyers will wait.`
+      : trend.key === 'shrink' ? `It's getting smaller${was}. Still cheaper after Tuesday.`
+      : trend.key === 'flip' ? `It changed${was}.` : `Holding at ${P(last.change)}.`;
+    return { cls:'stop', big:"DON'T OFFER YET", why:`Rollback of about ${P(last.change)}/L on ${fmtDate(target)}. ${why} No need to ask the supplier until after Tuesday.${after}`, badge: trend?.label };
+  }
+  const why = !trend ? 'Only one estimate so far.'
+    : trend.key === 'grow' ? `It's getting bigger${was}. Urgent.`
+    : trend.key === 'shrink' ? `It's getting smaller${was}. Less urgent.`
+    : trend.key === 'flip' ? `It changed${was}.` : `Holding at ${P(last.change)}.`;
+  return { cls:'go', big:'GREEN LIGHT: OFFER NOW', why:`Hike of about ${P(last.change)}/L on ${fmtDate(target)}. ${why} Ask your supplier for a price and get buyers to load before Tuesday.${after}`, badge: trend?.label };
+}
+
+// All Brent closes: live file (update-live.py) plus anything typed in by hand
+function allBrent(){
+  const m = new Map();
+  (state.brent || []).forEach(x => m.set(x.date, x.usd));
+  (window.LIVE?.brent || []).forEach(x => m.set(x.date, x.usd));
+  return [...m].map(([date, usd]) => ({ date, usd })).sort((x, y) => x.date.localeCompare(y.date));
+}
+const addDaysISO = (s, n) => { const d = new Date(s+'T00:00:00'); d.setDate(d.getDate() + n); return iso(d); };
+const avgIn = (b, from, to) => { const xs = b.filter(x => x.date >= from && x.date <= to); return xs.length ? { v: xs.reduce((a, x) => a + x.usd, 0) / xs.length, n: xs.length } : null; };
+
+// Current trend, the way the DOE does it: each Tuesday's change follows the Mon–Fri
+// average of the week before vs the week before that. We look at the first Tuesday
+// with no known estimate yet.
+function brentTrend(){
+  const b = allBrent();
+  if (b.length < 2) return null;
+  const u = upcoming();
+  const tue = u.last && !u.passed ? addDaysISO(u.target, 7) : u.target;
+  const thisWk = avgIn(b, addDaysISO(tue, -8), addDaysISO(tue, -4));
+  const lastWk = avgIn(b, addDaysISO(tue, -15), addDaysISO(tue, -11));
+  const latest = b[b.length-1];
+  if (!lastWk) return null;
+  // Week not started yet: assume prices hold at the latest close
+  const cur = thisWk ? thisWk.v : latest.usd, d = cur - lastWk.v;
+  return { dir: d <= -0.5 ? 'down' : d >= 0.5 ? 'up' : 'flat', d, latest, tue,
+    stale: daysBetween(latest.date, todayISO()) > 4,
+    txt: thisWk ? `this week avg $${cur.toFixed(2)} vs last week $${lastWk.v.toFixed(2)}`
+                : `latest $${latest.usd.toFixed(2)} vs last week avg $${lastWk.v.toFixed(2)}, if prices hold`,
+    days: thisWk?.n || 0 };
+}
+
+// The three things the signal looks at, shown under the light
+function factors(u){
+  const bt = brentTrend(), cur = u.cur;
+  const arrow = (dir, v) => `<b class="${dir === 'down' ? 'down-t' : dir === 'up' ? 'up-t' : ''}">${dir === 'down' ? '▼' : dir === 'up' ? '▲' : '→'} ${v}</b>`;
+  const rows = [];
+  if (cur && cur.change != null && cur.dir !== 'flat') rows.push([`Last Tuesday (${fmtDate(cur.date)})`, arrow(cur.dir, `${cur.dir === 'down' ? 'rollback' : 'hike'} ${P(cur.change)}`)]);
+  rows.push([`Next Tuesday (${fmtDate(u.target)})`, u.last && !u.passed
+    ? arrow(u.last.dir, `${u.last.dir === 'down' ? 'rollback' : 'hike'} ~${P(u.last.change)}`) + `<span class="s"> ${u.trend ? u.trend.label.toLowerCase() : 'estimate'}</span>`
+    : '<b>no estimate yet</b>']);
+  rows.push([`World oil trend → ${bt ? fmtDate(bt.tue) : 'next'}`, !bt ? '<b>add Brent prices</b>'
+    : arrow(bt.dir, bt.dir === 'down' ? 'rollback side' : bt.dir === 'up' ? 'hike side' : 'flat') + `<span class="s"> ${bt.d >= 0 ? '+' : '−'}$${Math.abs(bt.d).toFixed(2)} · ${bt.days ? bt.days + ' day' + (bt.days > 1 ? 's' : '') : 'no trading yet'}${bt.stale ? ' · old, update' : ''}</span>`]);
+  return `<div class="factors">${rows.map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('')}</div>`;
+}
+
+// ---------- ideal price ----------
+function ideal(u){
+  const { cur, last, list, target } = u;
+  if (!cur) return `<p class="q">Ideal price</p><div class="muted">Enter your current price first.</div>`;
+  const now = cur.price;
+  const rows = [[`Price now (${fmtDate(cur.date)})`, P(now)]];
+  let head, num, note;
+  if (!last || u.passed){
+    head = 'Ideal price to offer'; num = P(now);
+    note = u.passed ? 'This is last week\'s price. Update it once your supplier gives the new one.' : 'No price change expected yet, so the current price is the price.';
+  } else if (last.dir === 'down'){
+    const same = list.filter(p => p.dir === 'down').map(p => p.change);
+    const lo = now - Math.max(...same), hi = now - Math.min(...same);
+    head = `Ideal price after ${fmtDate(target)}`; num = P(now - last.change);
+    rows.push([`Expected rollback`, `−${P(last.change)}`]);
+    if (same.length > 1 && lo !== hi) rows.push(['Range from all estimates', `${P(lo)} – ${P(hi)}`]);
+    note = `After Tuesday, ask your supplier for the new price. <b>If it's ${P(now - last.change)} or lower, offer.</b> If it's higher, the supplier isn't passing on the full rollback, so push back before offering.`;
+  } else {
+    head = `Ideal price: offer now, before ${fmtDate(target)}`; num = P(now);
+    rows.push([`Expected hike`, `+${P(last.change)}`], [`Price after ${fmtDate(target)}`, P(now + last.change)]);
+    note = `Offer at ${P(now)} now. Every liter loaded before Tuesday saves the buyer ${P(last.change)}.`;
+  }
+  return `<div class="muted">${head}</div><div class="num">${num}<span class="muted" style="font-size:18px;font-weight:600">/L</span></div>
+    <div style="font-size:15px">${note}</div>
+    <div class="kv">${rows.map(([k,v]) => `<span class="muted" style="font-size:15px">${k}</span><b>${v}</b>`).join('')}</div>`;
+}
+
+// ---------- estimates list ----------
+function renderEstimates(u){
+  $('estTitle').textContent = `Rollback or hike on Tuesday ${fmtDate(u.target)}?`;
+  if (!u.list.length){ $('estList').innerHTML = `<div class="muted">No estimates yet. Add each new number you hear. The app shows if it's growing or shrinking.</div>`; return; }
+  const max = Math.max(...u.list.map(p => p.change));
+  $('estList').innerHTML = u.list.map((p, i) => {
+    const pr = u.list[i-1], d = pr ? p.change - pr.change : 0, flip = pr && p.dir !== pr.dir;
+    return `<div class="est">
+      <span class="d">${fmtDate(p.heard || p.date)}</span>
+      <div><div class="bar" style="width:${Math.max(6, p.change / max * 100)}%;background:${p.dir === 'down' ? 'var(--down)' : 'var(--up)'}"></div>
+        <div class="d" style="margin-top:2px">${p.dir === 'down' ? 'Rollback' : 'Hike'}${p.note ? ' · ' + esc(p.note) : ''}${pr ? (flip ? ' · switched' : d ? ` · ${d > 0 ? 'bigger +' : 'smaller −'}${P(Math.abs(d))}` : ' · same') : ''}</div></div>
+      <span class="v ${p.dir === 'down' ? 'down-t' : 'up-t'}">${P(p.change)}</span>
+      ${p.auto ? '<span class="x" title="From live headlines">📰</span>' : `<button class="x" data-del="${p.id}" title="Delete">✕</button>`}
+    </div>`;
+  }).join('') + (u.list.some(p => p.auto) ? '<p class="muted" style="margin:6px 0 0">📰 = read automatically from live headlines. Add your own estimate to replace them.</p>' : '');
+}
+
+// ---------- chart ----------
+function renderChart(){
+  const pts = prices();
+  $('chartCard').style.display = pts.length < 2 ? 'none' : '';
+  if (pts.length < 2) return;
+  const el = $('chart'), W = Math.max(300, el.clientWidth || 540), H = 190, pl = 54, pr = 12, pt = 10, pb = 26;
+  const T = p => new Date(p.date+'T00:00:00').getTime();
+  let x0 = T(pts[0]), x1 = T(pts[pts.length-1]); if (x0 === x1){ x0 -= 864e5; x1 += 864e5; }
+  const ys = pts.flatMap(p => p.price2 != null ? [p.price, p.price2] : [p.price]); let y0 = Math.min(...ys), y1 = Math.max(...ys); const pad = (y1-y0)*0.15 || 1; y0 -= pad; y1 += pad;
+  const X = v => pl + (v - x0) / (x1 - x0) * (W - pl - pr), Y = v => pt + (1 - (v - y0) / (y1 - y0)) * (H - pt - pb);
+  const yt = [0,1,2,3].map(i => y0 + (y1 - y0) * i / 3);
+  el.innerHTML = `<svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="Edsel price over time">
+    ${yt.map(v => `<line x1="${pl}" x2="${W-pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${pl-6}" y="${Y(v)+4}" text-anchor="end">₱${v.toFixed(0)}</text>`).join('')}
+    <polyline fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" points="${pts.map(p=>`${X(T(p))},${Y(p.price)}`).join(' ')}"/>
+    ${pts.map(p=>`<circle cx="${X(T(p))}" cy="${Y(p.price)}" r="4" fill="var(--accent)"><title>${fmtDate(p.date)}: supplier ${P(p.price)}/L</title></circle>`).join('')}
+    ${(e => e.length > 1 ? `<polyline fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 4" points="${e.map(p=>`${X(T(p))},${Y(p.price2)}`).join(' ')}"/>${e.map(p=>`<circle cx="${X(T(p))}" cy="${Y(p.price2)}" r="3" fill="var(--muted)"><title>${fmtDate(p.date)}: Edsel ${P(p.price2)}/L</title></circle>`).join('')}` : '')(pts.filter(p => p.price2 != null))}
+    <text x="${X(x0)}" y="${H-6}">${fmtDate(pts[0].date)}</text>
+    <text x="${X(x1)}" y="${H-6}" text-anchor="end">${fmtDate(pts[pts.length-1].date)}</text>
+  </svg>`;
+}
+
+// ---------- Edsel's price, week by week ----------
+function renderEdselTable(){
+  const pts = prices();
+  $('edselTable').innerHTML = `<thead><tr><th>Week</th><th class="r">Supplier</th><th class="r">Change</th><th class="r">Edsel</th></tr></thead><tbody>`
+    + [...pts].reverse().map((p, i, arr) => {
+      const prev = arr[i+1], d = prev ? +(p.price - prev.price).toFixed(2) : null;
+      return `<tr><td>${fmtDate(p.date)}</td><td class="r"><b>${P(p.price)}</b></td>
+        <td class="r ${d > 0 ? 'up-t' : d < 0 ? 'down-t' : ''}">${d == null ? '—' : d === 0 ? '0' : (d > 0 ? '▲ ' : '▼ ') + P(Math.abs(d))}</td>
+        <td class="r muted">${p.price2 != null ? P(p.price2) : '—'}</td></tr>`;
+    }).join('') + `</tbody>`
+    + (pts.some(p => p.est) ? `<caption style="caption-side:bottom;text-align:left" class="muted">* estimate</caption>` : '');
+}
+
+// ---------- history ----------
+function renderHistory(){
+  const all = [...state.prices].filter(p => p.actual === 'forecast' || p.price2 != null || p.price != null)
+    .sort((a,b)=> b.date.localeCompare(a.date) || (b.heard||'').localeCompare(a.heard||'') || b.id.localeCompare(a.id));
+  $('history').innerHTML = all.map(p => {
+    const main = p.actual === 'forecast'
+      ? `<span class="${p.dir === 'down' ? 'down-t' : 'up-t'}">Estimate: ${p.dir === 'down' ? 'rollback' : 'hike'} ${P(p.change)}</span>`
+      : `<b>${p.price != null ? P(p.price) : '—'}</b>${p.change != null && p.dir !== 'flat' ? ` <span class="${p.dir === 'down' ? 'down-t' : 'up-t'}">${p.dir === 'down' ? '▼' : '▲'} ${P(p.change)}</span>` : ''}`;
+    const sub = p.actual === 'forecast'
+      ? `For ${fmtDate(p.date)} · as of ${fmtDate(p.heard || p.date)}${p.note ? ' · ' + esc(p.note) : ''}`
+      : `${fmtDate(p.date)}${p.price2 != null ? ` · Edsel ${P(p.price2)}` : ''}${p.note ? ' · ' + esc(p.note) : ''}`;
+    return `<div class="item"><div><div>${main}</div><div class="s">${sub}</div></div><button class="x" data-del="${p.id}" title="Delete">✕</button></div>`;
+  }).join('') || `<div class="muted">Nothing yet.</div>`;
+}
+
+// ================= PRICE NEWS =================
+const TAG_LABEL = { rollback:'▼ Rollback', hike:'▲ Hike', risk:'⚠ Risk', market:'Market', outlook:'Outlook' };
+function renderLiveNews(){
+  const L = window.LIVE;
+  if (!L){ $('liveUpdated').textContent = ''; $('liveNews').innerHTML = '<div class="muted">Live news isn\'t connected yet.</div>'; return; }
+  const ago = Math.round((Date.now() - new Date(L.updated + ':00+08:00')) / 36e5);
+  $('liveUpdated').textContent = `updated ${ago < 1 ? 'just now' : ago < 48 ? ago + 'h ago' : Math.round(ago/24) + ' days ago'}`;
+  const tagOf = t => /rollback|cut|drop|decrease|lower|plunge|down/i.test(t) ? 'rollback' : /hike|increase|up by|rise|higher|soar/i.test(t) ? 'hike' : 'market';
+  $('liveNews').innerHTML = (L.news || []).slice(0, 15).map(n => {
+    const url = /^https?:\/\//.test(n.url) ? n.url : '';
+    const t = new Date(n.time + ':00+08:00');
+    return `<div class="news-item ${tagOf(n.title)}" style="margin:6px 0 0">
+      <div class="h" style="font-size:15px">${url ? `<a href="${esc(url)}" target="_blank" rel="noopener" style="color:inherit">${esc(n.title)} ↗</a>` : esc(n.title)}</div>
+      <div class="m"><span>${esc(n.source)} · ${t.toLocaleDateString('en-PH',{month:'short',day:'numeric'})} ${t.toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit'})}</span></div>
+    </div>`;
+  }).join('') || '<div class="muted">No headlines found.</div>';
+}
+function renderNewsFeed(){
+  renderLiveNews();
+  const items = [...state.news].sort((a,b)=> b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  let day = '';
+  $('newsFeed').innerHTML = items.map(n => {
+    const head = n.date !== day ? `<div class="day">${new Date(n.date+'T00:00:00').toLocaleDateString('en-PH',{weekday:'short',month:'short',day:'numeric'})}</div>` : '';
+    day = n.date;
+    const safeUrl = /^https?:\/\//.test(n.url || '') ? n.url : '';
+    return head + `<div class="news-item ${n.tag}">
+      <div class="h">${safeUrl ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener" style="color:inherit">${esc(n.title)} ↗</a>` : esc(n.title)}</div>
+      ${n.body ? `<div class="b">${esc(n.body)}</div>` : ''}
+      <div class="m"><span><span class="tag">${TAG_LABEL[n.tag] || n.tag}</span> · ${esc(n.source || '')}</span><button class="x" data-del-news="${n.id}" title="Delete">✕</button></div>
+    </div>`;
+  }).join('') || `<div class="muted">No news yet.</div>`;
+}
+let tag = 'rollback';
+document.querySelectorAll('#tagChoices .choice').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#tagChoices .choice').forEach(x => x.classList.toggle('on', x === b)); tag = b.dataset.tag;
+});
+$('nDate').value = todayISO();
+$('saveNews').onclick = () => {
+  const title = $('nTitle').value.trim();
+  if (!title){ toast('Type a headline'); $('nTitle').focus(); return; }
+  state.news.push({ id: uid(), date: $('nDate').value || todayISO(), tag, title, body: $('nBody').value.trim(), source: $('nSource').value.trim(), url: $('nUrl').value.trim() });
+  save(); ['nTitle','nBody','nSource','nUrl'].forEach(k => $(k).value = ''); renderNewsFeed(); toast('News added');
+};
+$('newsFeed').addEventListener('click', e => {
+  const id = e.target.dataset.delNews;
+  if (id && confirm('Delete this news?')){ forget(id); state.news = state.news.filter(n => n.id !== id); save(); renderNewsFeed(); }
+});
+
+// ---------- trend charts ----------
+const signed = p => p.dir === 'down' ? -p.change : p.change;   // rollback = negative
+const svgW = el => Math.max(300, el.clientWidth || 540);
+const short = s => new Date(s+'T00:00:00').toLocaleDateString('en-PH',{month:'short',day:'numeric'});
+
+// Line chart: pts = [{date, v, proj?}]
+function lineChart(el, pts, fmt, color, label){
+  if (pts.length < 2){ el.innerHTML = `<p class="muted">Add at least two points to see the line.</p>`; return; }
+  const W = svgW(el), H = 190, pl = 48, pr = 16, pt = 20, pb = 26;
+  const T = p => new Date(p.date+'T00:00:00').getTime();
+  let x0 = T(pts[0]), x1 = T(pts[pts.length-1]); if (x0 === x1){ x0 -= 864e5; x1 += 864e5; }
+  const vs = pts.map(p => p.v); let y0 = Math.min(...vs), y1 = Math.max(...vs); const pad = (y1-y0)*0.18 || 1; y0 -= pad; y1 += pad;
+  const X = p => pl + (T(p) - x0) / (x1 - x0) * (W - pl - pr), Y = v => pt + (1 - (v - y0) / (y1 - y0)) * (H - pt - pb);
+  const real = pts.filter(p => !p.proj), proj = pts.filter(p => p.proj);
+  const lastReal = real[real.length-1];
+  el.innerHTML = `<svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label}">
+    ${[0,1,2,3].map(i => { const v = y0 + (y1-y0)*i/3; return `<line x1="${pl}" x2="${W-pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${pl-6}" y="${Y(v)+4}" text-anchor="end">${fmt(v, true)}</text>`; }).join('')}
+    <polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" points="${real.map(p => `${X(p)},${Y(p.v)}`).join(' ')}"/>
+    ${proj.length ? `<polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-dasharray="5 4" points="${[lastReal, ...proj].map(p => `${X(p)},${Y(p.v)}`).join(' ')}"/>` : ''}
+    ${pts.map(p => `<circle cx="${X(p)}" cy="${Y(p.v)}" r="4" fill="${p.proj ? 'var(--card)' : color}" stroke="${color}" stroke-width="2"><title>${short(p.date)}: ${fmt(p.v)}${p.proj ? ' (expected)' : ''}</title></circle>`).join('')}
+    ${[lastReal, ...proj].map(p => `<text x="${X(p)}" y="${Y(p.v) - 9}" text-anchor="${p === pts[pts.length-1] ? 'end' : 'middle'}" style="fill:var(--ink);font-weight:600">${fmt(p.v)}${p.proj ? ' ?' : ''}</text>`).join('')}
+    <text x="${pl}" y="${H-6}">${short(pts[0].date)}</text>
+    <text x="${W-pr}" y="${H-6}" text-anchor="end">${short(pts[pts.length-1].date)}</text>
+  </svg>`;
+}
+
+function renderTrendCharts(){
+  const u = upcoming(), real = prices();
+  // 1. Edsel's price + expected next Tuesday
+  const pts = real.map(p => ({ date: p.date, v: p.price }));
+  if (u.last && !u.passed && u.cur) pts.push({ date: u.target, v: u.cur.price + signed(u.last), proj: true });
+  lineChart($('nChartPrice'), pts, (v, axis) => axis ? '₱' + v.toFixed(0) : P(v), 'var(--accent)', "Edsel's price trend");
+
+  // 2. Weekly changes (bars) + next week's estimate
+  const weeks = real.filter(p => p.change != null && p.dir !== 'flat').map(p => ({ date: p.date, v: signed(p) }));
+  if (u.last && !u.passed) weeks.push({ date: u.target, v: signed(u.last), proj: true });
+  const el = $('nChartWeekly');
+  if (!weeks.length){ el.innerHTML = '<p class="muted">No weekly changes yet.</p>'; }
+  else {
+    const W = svgW(el), H = 200, pl = 10, pr = 10, pt = 22, pb = 40, n = weeks.length, bw = Math.min(44, (W - pl - pr) / n * 0.6);
+    const m = Math.max(...weeks.map(w => Math.abs(w.v))) * 1.1, Y = v => pt + (1 - (v + m) / (2 * m)) * (H - pt - pb);
+    const cx = i => pl + (i + 0.5) * (W - pl - pr) / n;
+    el.innerHTML = `<svg width="100%" viewBox="0 0 ${W} ${H}" role="img" aria-label="Weekly price changes">
+      <line x1="${pl}" x2="${W-pr}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--muted)"/>
+      ${weeks.map((w, i) => { const c = w.v < 0 ? 'var(--down)' : 'var(--up)', y = Math.min(Y(0), Y(w.v)), h = Math.abs(Y(w.v) - Y(0));
+        return `<rect x="${cx(i) - bw/2}" y="${y}" width="${bw}" height="${Math.max(h,1)}" rx="3" fill="${w.proj ? 'none' : c}" stroke="${c}" stroke-width="2" ${w.proj ? 'stroke-dasharray="4 3"' : ''}><title>${short(w.date)}: ${w.v < 0 ? 'rollback' : 'hike'} ${P(Math.abs(w.v))}${w.proj ? ' (estimate)' : ''}</title></rect>
+          <text x="${cx(i)}" y="${w.v < 0 ? Y(w.v) + 14 : Y(w.v) - 5}" text-anchor="middle" style="fill:${c};font-weight:700">${w.v < 0 ? '−' : '+'}${Math.abs(w.v).toFixed(2)}</text>
+          <text x="${cx(i)}" y="${H - 22}" text-anchor="middle">${short(w.date)}</text>
+          ${w.proj ? `<text x="${cx(i)}" y="${H - 8}" text-anchor="middle">estimate</text>` : ''}`; }).join('')}
+    </svg>
+    <div class="row muted" style="gap:14px;margin-top:4px;flex:none"><span style="flex:none"><span class="up-t">■</span> hike</span><span style="flex:none"><span class="down-t">■</span> rollback</span><span style="flex:none">⬚ next week (estimate)</span></div>`;
+  }
+
+  // 3. Brent
+  const b = allBrent().slice(-30).map(x => ({ date: x.date, v: x.usd }));
+  lineChart($('nChartBrent'), b, (v, axis) => '$' + v.toFixed(axis ? 0 : 2), '#c27a00', 'Brent crude trend');
+
+  // Summary sentence
+  const acts = real.filter(p => p.change != null && p.dir !== 'flat');
+  let s = '';
+  if (acts.length){
+    const lastDir = acts[acts.length-1].dir; let k = 0, tot = 0;
+    for (let i = acts.length - 1; i >= 0 && acts[i].dir === lastDir; i--){ k++; tot += acts[i].change; }
+    s = `Last ${k} week${k > 1 ? 's' : ''}: <b class="${lastDir === 'down' ? 'down-t' : 'up-t'}">${lastDir === 'down' ? 'rollback' : 'hike'}${k > 1 ? 's' : ''} (${lastDir === 'down' ? '−' : '+'}${P(tot)})</b>.`;
+  }
+  if (u.last && !u.passed) s += ` Next (${short(u.target)}): <b class="${u.last.dir === 'down' ? 'down-t' : 'up-t'}">${u.last.dir === 'down' ? 'rollback' : 'hike'} ~${P(u.last.change)}</b>${u.trend ? ` · ${u.trend.label.toLowerCase()}` : ''}.`;
+  $('trendSummary').innerHTML = s;
+}
+$('bDate').value = todayISO();
+$('saveBrent').onclick = () => {
+  const usd = parseFloat($('bPrice').value);
+  if (!(usd > 0)){ toast('Type the Brent price'); $('bPrice').focus(); return; }
+  const date = $('bDate').value || todayISO();
+  state.brent = state.brent.filter(x => x.date !== date);   // one price per day
+  state.brent.push({ id: uid(), date, usd }); save(); $('bPrice').value = ''; render(); toast('Brent price added');
+};
+window.addEventListener('resize', () => renderTrendCharts());
+
+// ---------- TradingView widgets (live chart + world oil news) ----------
+let tvLoaded = false;
+function tvWidget(el, script, config){
+  const box = document.createElement('div'); box.className = 'tradingview-widget-container'; box.style.height = '100%';
+  const inner = document.createElement('div'); inner.className = 'tradingview-widget-container__widget'; inner.style.height = '100%';
+  const s = document.createElement('script'); s.src = 'https://s3.tradingview.com/external-embedding/' + script; s.async = true;
+  s.textContent = JSON.stringify(config);
+  box.append(inner, s); el.replaceChildren(box);
+}
+function loadTradingView(){
+  if (tvLoaded) return; tvLoaded = true;
+  const theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  tvWidget($('tvChart'), 'embed-widget-advanced-chart.js', { autosize: true, symbol: 'TVC:UKOIL', interval: 'D', range: '3M',
+    timezone: 'Asia/Manila', theme, style: '1', locale: 'en', hide_side_toolbar: true, allow_symbol_change: true, support_host: 'https://www.tradingview.com' });
+  tvWidget($('tvNews'), 'embed-widget-timeline.js', { feedMode: 'symbol', symbol: 'TVC:UKOIL', isTransparent: true,
+    displayMode: 'regular', width: '100%', height: '100%', colorTheme: theme, locale: 'en' });
+}
+
+// ---------- tabs ----------
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('section').forEach(s => s.classList.toggle('active', s.id === b.dataset.tab));
+  ui.tab = b.dataset.tab; saveUi();
+  if (b.dataset.tab === 'signal') renderChart(); else { renderTrendCharts(); loadTradingView(); }
+});
+if (ui.tab) document.querySelector(`nav button[data-tab="${ui.tab}"]`)?.click();
+
+function render(){
+  const u = upcoming(), s = signal(u);
+  $('light').className = 'light ' + s.cls;
+  $('light').innerHTML = `<div class="big">${s.big}</div><div class="why">${s.why}</div>${s.badge ? `<span class="badge">${/SHRINK/.test(s.badge) ? '⬇' : /EARLY/.test(s.badge) ? '⏱' : /UNCHANGED/.test(s.badge) ? '→' : '⬆'} ${s.badge}</span>` : ''}`;
+  $('factorsBox').innerHTML = factors(u);
+  $('ideal').innerHTML = ideal(u);
+  renderEstimates(u); renderChart(); renderEdselTable(); renderHistory(); renderNewsFeed(); renderTrendCharts();
+}
+
+// ---------- inputs ----------
+let dir = 'down';
+document.querySelectorAll('#dirChoices .choice').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#dirChoices .choice').forEach(x => x.classList.toggle('on', x === b)); dir = b.dataset.dir;
+});
+$('heard').value = todayISO(); $('priceDate').value = todayISO();
+$('saveEst').onclick = () => {
+  const chg = parseFloat($('chg').value);
+  if (!(chg >= 0)){ toast('Type how much'); $('chg').focus(); return; }
+  state.prices.push({ id: uid(), date: upcoming().target, heard: $('heard').value || todayISO(), kind:'diesel', price:null, price2:null,
+    dir, change: chg, actual:'forecast', note: $('who').value.trim() });
+  save(); $('chg').value = ''; render(); toast('Estimate added');
+};
+$('savePrice').onclick = () => {
+  const sup = parseFloat($('mainPrice').value), eds = $('edselPrice').value === '' ? null : parseFloat($('edselPrice').value);
+  if (!(sup > 0)){ toast('Type the supplier price'); $('mainPrice').focus(); return; }
+  let date = $('priceDate').value || todayISO();
+  const u = upcoming();
+  // Supplier often gives Tuesday's price a day or two early: don't apply the rollback/hike twice
+  if (u.last && date < u.target && daysBetween(date, u.target) <= 3 &&
+      confirm(`Is this the new price for Tuesday ${fmtDate(u.target)} (after the ${u.last.dir === 'down' ? 'rollback' : 'hike'})?`)) date = u.target;
+  const prev = current(), diff = prev ? +(sup - prev.price).toFixed(2) : null;
+  state.prices.push({ id: uid(), date, kind:'diesel', price: sup, price2: eds,
+    dir: !diff ? 'flat' : diff < 0 ? 'down' : 'up', change: diff == null ? null : Math.abs(diff), actual:'actual', note:'' });
+  save(); $('mainPrice').value = ''; $('edselPrice').value = ''; render(); toast('Price saved');
+};
+document.addEventListener('click', e => {
+  const id = e.target.dataset?.del;
+  if (id && confirm('Delete this?')){ forget(id); state.prices = state.prices.filter(p => p.id !== id); save(); render(); }
+});
+window.addEventListener('resize', renderChart);
+
+// ---------- backup ----------
+$('exportBtn').onclick = () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], { type:'application/json' }));
+  a.download = `fuel-offer-backup-${todayISO()}.json`; a.click(); setTimeout(()=> URL.revokeObjectURL(a.href), 1000);
+};
+$('importFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text()); if (!Array.isArray(data.prices)) throw 0;
+    if (!confirm('Replace current data with this backup?')) return;
+    state = { ...data, deals: data.deals || [], settings: data.settings || {} }; save(); render(); toast('Backup restored');
+  } catch(err){ toast('That file is not a valid backup'); }
+  e.target.value = '';
+};
+
+render();
+</script>
+</body>
+</html>
