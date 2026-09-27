@@ -327,32 +327,36 @@ function upcoming(){
 }
 
 // ---------- the signal ----------
-// We offer on Tuesdays, right after the new price is set. Offer if the change AFTER
-// that Tuesday is going up (the buyer should lock in the price before it rises).
+// We offer on Tuesdays, right after the new price is set. The decision follows the
+// CURRENT trend of world oil: going up → offer; going down → don't.
+function currentTrend(){
+  const b = allBrent();
+  if (b.length < 6) return null;
+  const avg = xs => xs.reduce((a, x) => a + x.usd, 0) / xs.length;
+  const last3 = b.slice(-3), prev3 = b.slice(-6, -3), now = avg(last3), before = avg(prev3), d = now - before;
+  const latest = b[b.length-1];
+  return { dir: d >= 0.5 ? 'up' : d <= -0.5 ? 'down' : 'flat', d, now, before, latest,
+    stale: daysBetween(latest.date, todayISO()) > 4,
+    txt: `last 3 days avg $${now.toFixed(2)} vs $${before.toFixed(2)} before` };
+}
 function offerPlan(u){
   const today = todayISO(), isTue = new Date(today+'T00:00:00').getDay() === 2;
-  const offerDay = isTue ? today : nextTuesday(today), after = addDaysISO(offerDay, 7);
-  const mine = state.prices.filter(p => p.actual === 'forecast' && p.change != null && p.dir !== 'flat' && p.date === after);
-  const list = (mine.length ? mine : headlineEstimates().filter(p => p.date === after))
-    .sort((a,b)=> (a.heard||a.date).localeCompare(b.heard||b.date) || a.id.localeCompare(b.id));
-  const est = list[list.length-1], bt = brentTrend(after);
-  const dir = est ? est.dir : bt && !bt.stale && bt.dir !== 'flat' ? bt.dir : null;
-  // This Tuesday's own change (the price we'll be offering at)
-  const thisTue = u.target === offerDay && u.last ? u.last : null;
+  const offerDay = isTue ? today : nextTuesday(today);
+  const thisTue = u.target === offerDay && u.last && !u.passed ? u.last : null;   // Tuesday's own rollback/hike
   const needPrice = isTue && (!u.cur || u.cur.date < today);
-  return { offerDay, after, est, bt, dir, thisTue, needPrice, isTue };
+  return { offerDay, isTue, thisTue, needPrice, ct: currentTrend() };
 }
 function signal(u){
-  const pl = offerPlan(u), day = pl.isTue ? 'today (Tuesday)' : `on Tuesday ${fmtDate(pl.offerDay)}`;
+  const pl = offerPlan(u), ct = pl.ct, day = pl.isTue ? 'today (Tuesday)' : `on Tuesday ${fmtDate(pl.offerDay)}`;
   const at = pl.thisTue ? ` Tuesday's price: ${pl.thisTue.dir === 'down' ? 'rollback' : 'hike'} of ~${P(pl.thisTue.change)}/L.` : '';
-  const get = pl.needPrice ? ' First get today\'s new price from your supplier and save it below.' : '';
-  const why = pl.est ? `${pl.est.dir === 'down' ? 'a rollback' : 'a hike'} of ~${P(pl.est.change)}/L is expected${pl.est.auto ? ' (from the news)' : ''}`
-    : pl.bt ? `world oil is ${pl.bt.dir === 'up' ? 'rising' : 'falling'} (${pl.bt.txt})` : '';
-  if (pl.dir === 'up') return { cls:'go', big:`GREEN LIGHT: OFFER ${pl.isTue ? 'TODAY' : 'ON TUESDAY'}`, badge: pl.est ? 'HIKE NEXT' : 'TREND UP',
-    why:`Offer ${day}. After that, prices go up: by ${fmtDate(pl.after)} ${why}. The buyer should load that week, before the rise.${at}${get}` };
-  if (pl.dir === 'down') return { cls:'stop', big:"DON'T OFFER THIS TUESDAY", badge: pl.est ? 'ROLLBACK NEXT' : 'TREND DOWN',
-    why:`Prices keep going down: by ${fmtDate(pl.after)} ${why}. Wait a week so the buyer gets the lower price.${at}` };
-  return { cls:'wait', big:'CHECK THE TREND FIRST', why:`Not sure yet which way prices go after ${fmtDate(pl.offerDay)}. ${allBrent().length ? 'World oil is flat or not updated. ' : ''}Ask Edsel or check Price news before Tuesday.${at}${get}` };
+  const get = pl.needPrice ? " First get today's new price from your supplier and save it below." : '';
+  if (!ct) return { cls:'wait', big:'CHECK THE TREND FIRST', why:'Not enough world oil prices yet to see the trend. Check Price news.' };
+  if (ct.stale) return { cls:'wait', big:'CHECK THE TREND FIRST', why:`The latest world oil price is from ${fmtDate(ct.latest.date)}, too old to trust. Check the live chart in Price news.${at}` };
+  if (ct.dir === 'up') return { cls:'go', big:`GREEN LIGHT: OFFER ${pl.isTue ? 'TODAY' : 'ON TUESDAY'}`, badge:'TREND GOING UP',
+    why:`Prices are going up right now (world oil ${ct.txt}). Offer ${day} so the buyer locks in before prices rise.${at}${get}` };
+  if (ct.dir === 'down') return { cls:'stop', big:"DON'T OFFER THIS TUESDAY", badge:'TREND GOING DOWN',
+    why:`Prices are going down right now (world oil ${ct.txt}). Wait, so the buyer gets the lower price.${at}` };
+  return { cls:'wait', big:'TREND IS FLAT', why:`World oil is barely moving (${ct.txt}). No rush either way. Watch the chart before Tuesday.${at}${get}` };
 }
 
 // All Brent closes: live file (update-live.py) plus anything typed in by hand
@@ -388,13 +392,13 @@ function brentTrend(tueArg){
 
 // What the signal looks at, shown under the light
 function factors(u){
-  const pl = offerPlan(u), cur = u.cur;
+  const pl = offerPlan(u), ct = pl.ct, cur = u.cur;
   const arrow = (dir, v) => `<b class="${dir === 'down' ? 'down-t' : dir === 'up' ? 'up-t' : ''}">${dir === 'down' ? '▼' : dir === 'up' ? '▲' : '→'} ${v}</b>`;
   const rows = [];
+  rows.push(['Current trend (world oil)', !ct ? '<b>not enough data</b>'
+    : arrow(ct.dir, ct.dir === 'up' ? 'going up' : ct.dir === 'down' ? 'going down' : 'flat') + `<span class="s"> ${ct.d >= 0 ? '+' : '−'}$${Math.abs(ct.d).toFixed(2)} · ${fmtDate(ct.latest.date)}${ct.stale ? ' · old' : ''}</span>`]);
   if (cur && cur.change != null && cur.dir !== 'flat') rows.push([`Last change (${fmtDate(cur.date)})`, arrow(cur.dir, `${cur.dir === 'down' ? 'rollback' : 'hike'} ${P(cur.change)}`)]);
-  rows.push([`Offer day (${fmtDate(pl.offerDay)})`, pl.thisTue ? arrow(pl.thisTue.dir, `${pl.thisTue.dir === 'down' ? 'rollback' : 'hike'} ~${P(pl.thisTue.change)}`) + (u.trend ? `<span class="s"> ${u.trend.label.toLowerCase()}</span>` : '') : '<b>—</b>']);
-  rows.push([`After that (${fmtDate(pl.after)})`, pl.est ? arrow(pl.est.dir, `${pl.est.dir === 'down' ? 'rollback' : 'hike'} ~${P(pl.est.change)}`) + `<span class="s"> ${pl.est.auto ? 'news' : 'estimate'}</span>`
-    : pl.bt ? arrow(pl.bt.dir, pl.bt.dir === 'down' ? 'rollback side' : pl.bt.dir === 'up' ? 'hike side' : 'flat') + `<span class="s"> world oil ${pl.bt.d >= 0 ? '+' : '−'}$${Math.abs(pl.bt.d).toFixed(2)}${pl.bt.stale ? ' · old' : ''}</span>` : '<b>unknown</b>']);
+  rows.push([`Offer day (${fmtDate(pl.offerDay)})`, pl.thisTue ? arrow(pl.thisTue.dir, `${pl.thisTue.dir === 'down' ? 'rollback' : 'hike'} ~${P(pl.thisTue.change)}`) : '<b>—</b>']);
   return `<div class="factors">${rows.map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('')}</div>`;
 }
 
